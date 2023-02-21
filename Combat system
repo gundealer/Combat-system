@@ -1,0 +1,72 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local primaryPart = character.PrimaryPart
+
+-- create hitbox for melee attack
+local hitbox = ReplicatedStorage.Hitbox:Clone()
+hitbox.Parent = primaryPart
+
+-- initialize slow cooldown
+local slowCooldown = false
+
+-- set cooldown time for slowing ability
+local SLOW_COOLDOWN_TIME = 30
+
+-- set distance for slowing ability
+local SLOW_DISTANCE = 50
+
+-- set slow and normal walk speeds for other players
+local SLOW_WALK_SPEED = 4
+local NORMAL_WALK_SPEED = 16
+
+-- set delay for dodging ability
+local DODGE_DELAY = 0.5
+
+-- listen for player input
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.E and not slowCooldown then
+            slowCooldown = true
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= localPlayer and player.Character then
+                    local distance = (character.PrimaryPart.Position - player.Character.PrimaryPart.Position).Magnitude
+                    if distance <= SLOW_DISTANCE then
+                        player.Character.Humanoid.WalkSpeed = SLOW_WALK_SPEED
+                        spawn(function()
+                            wait(5)
+                            player.Character.Humanoid.WalkSpeed = NORMAL_WALK_SPEED
+                        end)
+                    end
+                end
+            end
+            wait(SLOW_COOLDOWN_TIME)
+            slowCooldown = false
+        elseif input.KeyCode == Enum.KeyCode.F then
+            local prevWalkSpeed = humanoid.WalkSpeed
+            humanoid.WalkSpeed = 0
+            wait(DODGE_DELAY)
+            humanoid.WalkSpeed = prevWalkSpeed
+        elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if hitbox.Parent == nil then
+                -- if hitbox was previously destroyed, create a new one
+                hitbox = ReplicatedStorage.Hitbox:Clone()
+                hitbox.Parent = primaryPart
+            end
+            hitbox.Size = Vector3.new(5, 5, 5)
+            hitbox.Position = primaryPart.Position + Vector3.new(0, 2, 0)
+            hitbox.Touched:Connect(function(part)
+                if part.Parent ~= character then
+                    local humanoid = part.Parent:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid:TakeDamage(10)
+                    end
+                end
+            end)
+        end
+    end
+end)
